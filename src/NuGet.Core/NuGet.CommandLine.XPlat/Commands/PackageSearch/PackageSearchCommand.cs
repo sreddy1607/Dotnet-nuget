@@ -42,6 +42,12 @@ namespace NuGet.CommandLine.XPlat
                 Arity = ArgumentArity.Zero
             };
 
+            var workingDirectory = new CliOption<string>("--working-directory")
+            {
+                Arity = ArgumentArity.ZeroOrOne,
+                Description = Strings.ConfigPathsWorkingDirectoryDescription
+            };
+
             var prerelease = new CliOption<bool>("--prerelease")
             {
                 Description = Strings.pkgSearch_PrereleaseDescription,
@@ -91,6 +97,7 @@ namespace NuGet.CommandLine.XPlat
 
             searchCommand.Arguments.Add(searchTerm);
             searchCommand.Options.Add(sources);
+            searchCommand.Options.Add(workingDirectory);
             searchCommand.Options.Add(exactMatch);
             searchCommand.Options.Add(prerelease);
             searchCommand.Options.Add(interactive);
@@ -111,6 +118,7 @@ namespace NuGet.CommandLine.XPlat
                     {
                         Sources = parserResult.GetValue(sources),
                         SearchTerm = parserResult.GetValue(searchTerm),
+                        WorkingDirectory = parserResult.GetValue(workingDirectory),
                         ExactMatch = parserResult.GetValue(exactMatch),
                         Interactive = parserResult.GetValue(interactive),
                         Prerelease = parserResult.GetValue(prerelease),
@@ -133,8 +141,15 @@ namespace NuGet.CommandLine.XPlat
         {
             DefaultCredentialServiceUtility.SetupDefaultCredentialService(packageSearchArgs.Logger, !packageSearchArgs.Interactive);
 
+            var rootDirectory = Directory.GetCurrentDirectory();
+            //Should I do additional alidation of the working directory? 
+            if (!string.IsNullOrEmpty(packageSearchArgs.WorkingDirectory))
+            {
+                rootDirectory = packageSearchArgs.WorkingDirectory;
+            }
+
             ISettings settings = Settings.LoadDefaultSettings(
-                Directory.GetCurrentDirectory(),
+                rootDirectory,
                 configFileName: configFile,
                 machineWideSettings: new XPlatMachineWideSetting());
             PackageSourceProvider sourceProvider = new PackageSourceProvider(settings);

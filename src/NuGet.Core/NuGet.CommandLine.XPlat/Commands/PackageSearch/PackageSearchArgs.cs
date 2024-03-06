@@ -19,6 +19,7 @@ namespace NuGet.CommandLine.XPlat
         public bool Interactive { get; set; }
         public ILoggerWithColor Logger { get; set; }
         public string SearchTerm { get; set; }
+        public string WorkingDirectory { get; set; }
         public PackageSearchVerbosity Verbosity { get; set; } = PackageSearchVerbosity.Normal;
         public PackageSearchFormat Format { get; set; } = PackageSearchFormat.Table;
 

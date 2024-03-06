@@ -6,7 +6,7 @@
     <OutputType>Exe</OutputType>
     <SkipShared>true</SkipShared>
     <ToolCommandName>nugetcdk</ToolCommandName>
-    <Version>1.0.4</Version>
+    <Version>1.0.5</Version>
     <PackAsTool>true</PackAsTool>
     <PackageIcon>icon.png</PackageIcon>
     <PackageOutputPath>./nupkg</PackageOutputPath>
