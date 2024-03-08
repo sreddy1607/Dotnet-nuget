@@ -535,7 +535,7 @@ namespace NuGet.PackageManagement.Test
                 {packageIdentity, packageAuditInfo }
             };
 
-            var auditSettings = new Dictionary<string, (bool, PackageVulnerabilitySeverity)>();
+            var auditSettings = new Dictionary<string, AuditChecker.AuditSettings>();
             int Sev0Matches = 0, Sev1Matches = 0, Sev2Matches = 0, Sev3Matches = 0, InvalidSevMatches = 0;
             List<PackageIdentity> packagesWithReportedAdvisories = new List<PackageIdentity>();
 
@@ -575,7 +575,7 @@ namespace NuGet.PackageManagement.Test
                 {packageIdentity, packageAuditInfo }
             };
 
-            var auditSettings = new Dictionary<string, (bool, PackageVulnerabilitySeverity)>();
+            var auditSettings = new Dictionary<string, AuditChecker.AuditSettings>();
             int Sev0Matches = 0, Sev1Matches = 0, Sev2Matches = 0, Sev3Matches = 0, InvalidSevMatches = 0;
             List<PackageIdentity> packagesWithReportedAdvisories = new List<PackageIdentity>();
 
@@ -631,7 +631,7 @@ namespace NuGet.PackageManagement.Test
                 {packageIdentity, packageAuditInfo }
             };
 
-            var auditSettings = new Dictionary<string, (bool, PackageVulnerabilitySeverity)>();
+            var auditSettings = new Dictionary<string, AuditChecker.AuditSettings>();
             int Sev0Matches = 0, Sev1Matches = 0, Sev2Matches = 0, Sev3Matches = 0, InvalidSevMatches = 0;
             List<PackageIdentity> packagesWithReportedAdvisories = new List<PackageIdentity>();
 
@@ -694,7 +694,7 @@ namespace NuGet.PackageManagement.Test
                 {packageC, packageAuditInfoC },
             };
 
-            var auditSettings = new Dictionary<string, (bool, PackageVulnerabilitySeverity)>();
+            var auditSettings = new Dictionary<string, AuditChecker.AuditSettings>();
             int Sev0Matches = 0, Sev1Matches = 0, Sev2Matches = 0, Sev3Matches = 0, InvalidSevMatches = 0;
             List<PackageIdentity> packagesWithReportedAdvisories = new List<PackageIdentity>();
 
@@ -745,10 +745,16 @@ namespace NuGet.PackageManagement.Test
                 {packageIdentity, packageAuditInfo }
             };
 
-            var auditSettings = new Dictionary<string, (bool, PackageVulnerabilitySeverity)>()
+            var auditSettings = new Dictionary<string, AuditChecker.AuditSettings>()
             {
-                { projectPath1 , (true, PackageVulnerabilitySeverity.Moderate) },
-                { projectPath2 , (false, PackageVulnerabilitySeverity.Moderate) }
+                { projectPath1 , new AuditChecker.AuditSettings(
+                                        true,
+                                        PackageVulnerabilitySeverity.Moderate,
+                                        new List<string>()) },
+                { projectPath2 , new AuditChecker.AuditSettings(
+                                        false,
+                                        PackageVulnerabilitySeverity.Moderate,
+                                        new List<string>()) }
             };
 
             int Sev0Matches = 0, Sev1Matches = 0, Sev2Matches = 0, Sev3Matches = 0, InvalidSevMatches = 0;
@@ -799,10 +805,16 @@ namespace NuGet.PackageManagement.Test
                 {packageIdentity, packageAuditInfo }
             };
 
-            var auditSettings = new Dictionary<string, (bool, PackageVulnerabilitySeverity)>()
+            var auditSettings = new Dictionary<string, AuditChecker.AuditSettings>()
             {
-                { projectPath1 , (true, PackageVulnerabilitySeverity.Moderate) },
-                { projectPath2 , (true, PackageVulnerabilitySeverity.High) }
+                { projectPath1 , new AuditChecker.AuditSettings(
+                                        true,
+                                        PackageVulnerabilitySeverity.Moderate,
+                                        new List<string>()) },
+                { projectPath2 , new AuditChecker.AuditSettings(
+                                        true,
+                                        PackageVulnerabilitySeverity.High,
+                                        new List<string>()) }
             };
 
             int Sev0Matches = 0, Sev1Matches = 0, Sev2Matches = 0, Sev3Matches = 0, InvalidSevMatches = 0;
@@ -966,7 +978,7 @@ namespace NuGet.PackageManagement.Test
 
             packages = new List<PackageRestoreData>
             {
-                new PackageRestoreData(new PackageReference(packageIdentity, CommonFrameworks.Net472), new string[]{ projectPath }, isMissing: true)
+                new PackageRestoreData(new PackageReference(packageIdentity, CommonFrameworks.Net472), new string[]{ projectPath }, isMissing: true) // this doesn't reflect the project paths I see in real cases. those end with /packages.config
             };
         }
     }

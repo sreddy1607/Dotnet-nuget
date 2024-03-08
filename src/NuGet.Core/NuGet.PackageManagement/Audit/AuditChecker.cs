@@ -37,12 +37,12 @@ namespace NuGet.PackageManagement
             // Before fetching vulnerability data, check if any projects are enabled for audit
             // If there are no settings, then run the audit for all packages
             bool anyProjectsEnabledForAudit = restoreAuditProperties.Count == 0;
-            var auditSettings = new Dictionary<string, (bool, PackageVulnerabilitySeverity)>(restoreAuditProperties.Count);
+            var auditSettings = new Dictionary<string, AuditSettings>(restoreAuditProperties.Count);
             foreach (var (projectPath, restoreAuditProperty) in restoreAuditProperties)
             {
                 _ = restoreAuditProperty.TryParseEnableAudit(out bool isAuditEnabled);
                 _ = restoreAuditProperty.TryParseAuditLevel(out PackageVulnerabilitySeverity minimumAuditSeverity);
-                auditSettings.Add(projectPath, (isAuditEnabled, minimumAuditSeverity));
+                auditSettings.Add(projectPath, new AuditSettings(isAuditEnabled, minimumAuditSeverity, restoreAuditProperty.SuppressedAdvisories));
                 anyProjectsEnabledForAudit |= isAuditEnabled;
             }
 
@@ -195,7 +195,7 @@ namespace NuGet.PackageManagement
         }
 
         internal static List<LogMessage> CreateWarnings(Dictionary<PackageIdentity, PackageAuditInfo> packagesWithKnownVulnerabilities,
-            Dictionary<string, (bool, PackageVulnerabilitySeverity)> auditSettings,
+            Dictionary<string, AuditSettings> auditSettings,
             ref int Sev0Matches,
             ref int Sev1Matches,
             ref int Sev2Matches,
@@ -221,9 +221,26 @@ namespace NuGet.PackageManagement
                     for (int i = 0; i < auditInfo.Projects.Count; i++)
                     {
                         string projectPath = auditInfo.Projects[i];
-                        auditSettings.TryGetValue(projectPath, out (bool IsAuditEnabled, PackageVulnerabilitySeverity MinimumSeverity) auditSetting);
+                        auditSettings.TryGetValue(projectPath, out AuditSettings auditSetting);
 
-                        if (auditSetting == default || auditSetting.IsAuditEnabled && (int)vulnerability.Severity >= (int)auditSetting.MinimumSeverity)
+                        // projectPath (from vulnerabilitInfo.AuditInfo) here is \AdvayPackagesConfigProject\packages.config,
+                        // while the project paths in the AuditSettings (restore settings) dict are like \AdvayPackagesConfigProject\AdvayPackagesConfigProject.csproj
+                        // so auditSetting will always evaluate as default on L224
+
+                        var isAuditSettingDefault = auditSetting == default;
+                        var overMinSeverity = new bool();
+                        var isSuppressed = new bool();
+
+                        if (auditSetting != default)
+                        {
+                            overMinSeverity = (int)vulnerability.Severity >= (int)auditSetting.MinimumSeverity;
+                            isSuppressed = auditSetting.SuppressedAdvisories.Contains(vulnerability.Url.ToString());
+                        }
+
+                        if (auditSetting == default
+                            || (auditSetting.IsAuditEnabled
+                                && (int)vulnerability.Severity >= (int)auditSetting.MinimumSeverity
+                                && !auditSetting.SuppressedAdvisories.Contains(vulnerability.Url.ToString())))
                         {
                             isVulnerabilityReported = true;
                             if (!counted)
@@ -349,6 +366,24 @@ namespace NuGet.PackageManagement
                 Identity = identity;
                 Vulnerabilities = new();
                 Projects = projects;
+            }
+        }
+
+        internal class AuditSettings
+        {
+            public bool IsAuditEnabled { get; }
+
+            public PackageVulnerabilitySeverity MinimumSeverity { get; }
+
+            public HashSet<string> SuppressedAdvisories { get; }
+
+            public AuditSettings(bool enableAudit,
+                PackageVulnerabilitySeverity auditLevel,
+                IList<string> suppressedAdvisories)
+            {
+                IsAuditEnabled = enableAudit;
+                MinimumSeverity = auditLevel;
+                SuppressedAdvisories = new HashSet<string>(suppressedAdvisories);
             }
         }
     }

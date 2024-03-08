@@ -401,7 +401,7 @@ namespace NuGet.CommandLine
                 maxNumberOfParallelTasks: DisableParallelProcessing
                         ? 1
                         : PackageManagementConstants.DefaultMaxDegreeOfParallelism,
-                enableNuGetAudit: true,
+                enableNuGetAudit: true, // always true?
                 restoreAuditProperties,
                 logger: collectorLogger);
 
