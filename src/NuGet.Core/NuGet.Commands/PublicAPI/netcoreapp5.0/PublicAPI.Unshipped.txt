@@ -1,1 +1,2 @@
 #nullable enable
+NuGet.Commands.RestoreCommandProvidersCache.GetOrCreate(string! globalPackagesPath, System.Collections.Generic.IReadOnlyList<string!>! fallbackPackagesPaths, System.Collections.Generic.IReadOnlyList<NuGet.Protocol.Core.Types.SourceRepository!>! packageSources, System.Collections.Generic.IReadOnlyList<NuGet.Protocol.Core.Types.SourceRepository!>! auditSources, NuGet.Protocol.Core.Types.SourceCacheContext! cacheContext, NuGet.Common.ILogger! log, bool updateLastAccess) -> NuGet.Commands.RestoreCommandProviders!
