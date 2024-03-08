@@ -224,7 +224,7 @@ namespace NuGet.PackageManagement
                         auditSettings.TryGetValue(projectPath, out AuditSettings auditSetting);
 
                         // projectPath (from vulnerabilitInfo.AuditInfo) here is \AdvayPackagesConfigProject\packages.config,
-                        // while the project paths in the AuditSettings (restore settings) dict are like \AdvayPackagesConfigProject\AdvayPackagesConfigProject.csproj
+                        // while the project paths in the AuditSettings (restore metadata) dict are like \AdvayPackagesConfigProject\AdvayPackagesConfigProject.csproj
                         // so auditSetting will always evaluate as default on L224
 
                         var isAuditSettingDefault = auditSetting == default;
