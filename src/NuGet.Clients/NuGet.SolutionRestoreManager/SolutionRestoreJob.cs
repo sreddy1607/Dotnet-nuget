@@ -761,7 +761,7 @@ namespace NuGet.SolutionRestoreManager
                 if (nuGetProject.ProjectStyle == ProjectStyle.PackagesConfig)
                 {
                     var msbuildProject = (MSBuildNuGetProject)nuGetProject;
-                    var nuGetProjectName = (string)msbuildProject.GetMetadataOrNull(NuGetProjectMetadataKeys.Name);
+                    var nuGetProjectName = (string)msbuildProject.GetMetadataOrNull(NuGetProjectMetadataKeys.Name); // What is this value? .csproj? packages.config? Just the project name?
                     var nugetAudit = (string)msbuildProject.GetMetadataOrNull(ProjectBuildProperties.NuGetAudit);
                     var auditLevel = (string)msbuildProject.GetMetadataOrNull(ProjectBuildProperties.NuGetAuditLevel);
                     var auditProperties = new RestoreAuditProperties()

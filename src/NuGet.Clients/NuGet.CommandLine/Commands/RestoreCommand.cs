@@ -300,7 +300,7 @@ namespace NuGet.CommandLine
                 foreach (KeyValuePair<PackageReference, List<string>> package in packageReferenceToProjects)
                 {
                     var exists = nuGetPackageManager.PackageExistsInPackagesFolder(package.Key.PackageIdentity, packageSaveMode);
-                    packageRestoreData.Add(new PackageRestoreData(package.Key, package.Value, !exists));
+                    packageRestoreData.Add(new PackageRestoreData(package.Key, package.Value, !exists)); // ignore and look at below packages.config section?
                     areAnyPackagesMissing |= !exists;
                 }
                 restoreAuditProperties = GetRestoreAuditProperties(packageRestoreInputs);
@@ -334,7 +334,7 @@ namespace NuGet.CommandLine
                     var packageSpec = packageRestoreInputs.ProjectReferenceLookup.GetProjectSpec(packageRestoreInputs.ProjectFiles.First());
                     if (packageSpec != null)
                     {
-                        referenceFile = packageSpec.FilePath;
+                        referenceFile = packageSpec.FilePath; // What is this value? .csproj? packages.config?
                         restoreAuditProperties.Add(referenceFile, packageSpec.RestoreMetadata.RestoreAuditProperties);
                     }
                 }
