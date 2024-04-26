@@ -24,6 +24,7 @@ namespace NuGet.PackageManagement.UI
             Description = serverData.Description;
             Authors = serverData.Authors;
             Owners = serverData.Owners;
+            KnownOwners = serverData.KnownOwners;
             IconUrl = serverData.IconUrl;
             LicenseUrl = serverData.LicenseUrl;
             ProjectUrl = serverData.ProjectUrl;
@@ -82,7 +83,7 @@ namespace NuGet.PackageManagement.UI
         public string Authors { get; set; }
 
         public string Owners { get; set; }
-
+        public IReadOnlyList<KnownOwner> KnownOwners { get; private set; }
         public Uri IconUrl { get; set; }
 
         public Uri LicenseUrl { get; set; }
