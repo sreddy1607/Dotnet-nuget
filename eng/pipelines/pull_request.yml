@@ -41,7 +41,7 @@ resources:
     name: 1ESPipelineTemplates/MicroBuildTemplate
     ref: refs/tags/release
 variables:
-  - name: BINLOG_DIRECTORY 
+  - name: BINLOG_DIRECTORY
     value: $(Build.StagingDirectory)/binlog
   - name: DOTNET_NOLOGO
     value: 1
@@ -55,8 +55,6 @@ variables:
     value: ${{ parameters.RunBuildForPublishing }}
   - name: RunCrossFrameworkTestsOnWindows
     value: ${{ parameters.RunCrossFrameworkTestsOnWindows }}
-  - name: RunEndToEndTests
-    value: ${{ parameters.RunEndToEndTests }}
   - name: RunFunctionalTestsOnWindows
     value: ${{ parameters.RunFunctionalTestsOnWindows }}
   - name: RunSourceBuild

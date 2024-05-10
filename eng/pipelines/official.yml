@@ -36,7 +36,7 @@ resources:
     ref: refs/tags/release
 
 variables:
-  - name: BINLOG_DIRECTORY 
+  - name: BINLOG_DIRECTORY
     value: $(Build.StagingDirectory)/binlog
   - name: DOTNET_NOLOGO
     value: 1
@@ -50,15 +50,13 @@ variables:
     value: ${{ parameters.RunBuildForPublishing }}
   - name: RunCrossFrameworkTestsOnWindows
     value: ${{ parameters.RunCrossFrameworkTestsOnWindows }}
-  - name: RunEndToEndTests
-    value: ${{ parameters.RunEndToEndTests }}
   - name: RunFunctionalTestsOnWindows
     value: ${{ parameters.RunFunctionalTestsOnWindows }}
   - name: RunSourceBuild
     value: ${{ parameters.RunSourceBuild }}
   - name: RunTestsOnLinux
     value: ${{ parameters.RunTestsOnLinux }}
-  - name
+  - name: RunTestsOnMac
     value: ${{ parameters.RunTestsOnMac }}
   - name: RunMonoTestsOnMac
     value: ${{ parameters.RunMonoTestsOnMac }}
