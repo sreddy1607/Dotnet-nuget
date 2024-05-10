@@ -36,18 +36,32 @@ resources:
     ref: refs/tags/release
 
 variables:
-  BINLOG_DIRECTORY: $(Build.StagingDirectory)/binlog
-  DOTNET_NOLOGO: 1
-  NUGET_EXPERIMENTAL_CHAIN_BUILD_RETRY_POLICY: 3,1000
-  Codeql.Enabled: false
-  Codeql.TSAEnabled: false
-  RunBuildForPublishing: ${{ parameters.RunBuildForPublishing }}
-  RunCrossFrameworkTestsOnWindows: ${{ parameters.RunCrossFrameworkTestsOnWindows }}
-  RunFunctionalTestsOnWindows: ${{ parameters.RunFunctionalTestsOnWindows }}
-  RunSourceBuild: ${{ parameters.RunSourceBuild }}
-  RunTestsOnLinux: ${{ parameters.RunTestsOnLinux }}
-  RunTestsOnMac: ${{ parameters.RunTestsOnMac }}
-  RunMonoTestsOnMac: ${{ parameters.RunMonoTestsOnMac }}
+  - name: BINLOG_DIRECTORY 
+    value: $(Build.StagingDirectory)/binlog
+  - name: DOTNET_NOLOGO
+    value: 1
+  - name: NUGET_EXPERIMENTAL_CHAIN_BUILD_RETRY_POLICY
+    value: 3,1000
+  - name: Codeql.Enabled
+    value: false
+  - name: Codeql.TSAEnabled
+    value: false
+  - name: RunBuildForPublishing
+    value: ${{ parameters.RunBuildForPublishing }}
+  - name: RunCrossFrameworkTestsOnWindows
+    value: ${{ parameters.RunCrossFrameworkTestsOnWindows }}
+  - name: RunEndToEndTests
+    value: ${{ parameters.RunEndToEndTests }}
+  - name: RunFunctionalTestsOnWindows
+    value: ${{ parameters.RunFunctionalTestsOnWindows }}
+  - name: RunSourceBuild
+    value: ${{ parameters.RunSourceBuild }}
+  - name: RunTestsOnLinux
+    value: ${{ parameters.RunTestsOnLinux }}
+  - name
+    value: ${{ parameters.RunTestsOnMac }}
+  - name: RunMonoTestsOnMac
+    value: ${{ parameters.RunMonoTestsOnMac }}
 
 extends:
   template: azure-pipelines/MicroBuild.1ES.Official.yml@MicroBuildTemplate
