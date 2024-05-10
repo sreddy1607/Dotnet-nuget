@@ -63,7 +63,7 @@ variables:
     value: ${{ parameters.RunSourceBuild }}
   - name: RunTestsOnLinux
     value: ${{ parameters.RunTestsOnLinux }}
-  - name
+  - name: RunTestsOnMac
     value: ${{ parameters.RunTestsOnMac }}
   - name: RunMonoTestsOnMac
     value: ${{ parameters.RunMonoTestsOnMac }}
