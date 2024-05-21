@@ -28,7 +28,7 @@ stages:
         - name: VsBaseBuildDrop
           value: $[dependencies.TestMachineConfiguration.outputs['Setbasebuilddrop.BaseBuildDrop']]
       runSettingsURI: $(RunSettingsURI)
-      visualStudioBootstrapperURI: $(VsBootstrapperUrl)  
+      visualStudioBootstrapperURI: $(VsBootstrapperUrl)
       baseVisualStudioBootstrapperURI: https://vsdrop.microsoft.com/file/v1/$(VisualStudio.BaseBuild.ProductsDropName);bootstrappers/Enterprise/vs_enterprise.exe
       candidateBaselineBuilds: $(BaselineBuildCommitIds)
       testLabPoolName: VS-Platform
@@ -44,12 +44,12 @@ stages:
       testExecutionJobTimeoutInMinutes: ${{parameters.testExecutionJobTimeoutInMinutes}}
       testMachineCleanUpStrategy: ${{parameters.testMachineCleanUpStrategy}}
       testAgentElevated: true
-      preTestMachineConfigurationStepList: 
+      preTestMachineConfigurationStepList:
         - download: ComponentBuildUnderTest
           artifact: MicroBuildOutputs
           displayName: 'Download BootstrapperInfo.json'
 
-        - task: PowerShell@2 
+        - task: PowerShell@2
           displayName: 'Set BootstrapperURI variable'
           name: SetBootstrapperURI
           inputs:
@@ -114,7 +114,7 @@ stages:
             continueOnError: true
             filePath: $(DartLab.Path)\Scripts\AzureDevOps\Build\Get-BuildIdFromCloudBuildSessionID.ps1
             arguments: -ClientSecret (ConvertTo-SecureString '$(CloudBuild-ClientSecret)' -AsPlainText -Force) -ClientID '$(CloudBuild-ClientID)' -SessionID $(setcloudbuildsessionid.QBuildSessionId) -OutVariableName 'BaselineBuildID'
-        
+
         - task: PowerShell@2
           displayName: "Get Baseline build commit ids"
           name: "Getbaselinebuildcommitids"
@@ -125,7 +125,7 @@ stages:
             script: |
               try {
               Write-Host "Getting Baseline build commit ids for build: '$(BaselineBuildID)'"
-              
+
               $artifactName = 'BuildArtifacts'
               $baselineBuildsFile = Join-Path $(Agent.TempDirectory) "BaselineBuilds.json"
 
@@ -142,7 +142,7 @@ stages:
               }
         - task: PowerShell@2
           name: SetVisualStudioBaseBuildID
-          displayName: Set 'VisualStudio.BaseBuild.ID' 
+          displayName: Set 'VisualStudio.BaseBuild.ID'
           retryCountOnTaskFailure: 3
           condition: ne(variables['BaselineBuildCommitIds'], '')
           continueOnError: true
@@ -209,6 +209,9 @@ stages:
             inlineScript: |
               Get-ChildItem Env: | Sort-Object Name | Format-Table -Wrap -AutoSize
 
+        - powershell: Get-Volume
+          displayName: "Check disk space"
+
         - task: DownloadPipelineArtifact@2
           displayName: "Download Pipeline artifacts"
           inputs:
@@ -232,3 +235,6 @@ stages:
           displayName: "SetupFunctionalTests.ps1"
           inputs:
             scriptName: "$(System.DefaultWorkingDirectory)/artifacts/EndToEnd/scripts/SetupFunctionalTests.ps1"
+
+        - powershell: Get-Volume
+          displayName: "Check disk space"
