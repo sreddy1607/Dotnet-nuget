@@ -238,3 +238,11 @@ stages:
 
         - powershell: Get-Volume
           displayName: "Check disk space"
+
+      postDeployAndRunTestsStepList:
+        - powershell: Get-Volume
+          displayName: "Check disk space"
+
+        - powershell: gci C:\Test\Logs\Dumps
+          displayName: "Check memory dumps"
+          continueOnError: true

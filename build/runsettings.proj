@@ -24,6 +24,7 @@
         <MSBuild
             Projects="template.runsettingsproj"
             Properties="RunName=NuGet.Tests.Apex.Daily;
-            FileName=NuGet.Tests.Apex.Daily.dll;NuGet.Tests.Apex.dll;" />
+            FileName=NuGet.Tests.Apex.Daily.dll;NuGet.Tests.Apex.dll;
+            VideoRecorderCollector=disabled" />
     </Target>
 </Project>
