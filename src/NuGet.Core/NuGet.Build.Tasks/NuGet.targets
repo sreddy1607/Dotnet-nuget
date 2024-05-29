@@ -1114,7 +1114,6 @@ Copyright (c) .NET Foundation. All rights reserved.
 
     <!-- Write out advisory suppressions-->
     <GetRestoreNuGetAuditSuppressionsTask
-      Condition=" '$(PackageReferenceCompatibleProjectStyle)' == 'true' "
       ProjectUniqueName="$(MSBuildProjectFullPath)"
       NuGetAuditSuppressions="@(NuGetAuditSuppress)"
       TargetFrameworks="$(TargetFramework)"
