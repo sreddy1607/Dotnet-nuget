@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
 using System.Drawing;
@@ -1609,6 +1610,8 @@ namespace NuGet.Commands
                     bool isProject = ((typeConstraint == LibraryDependencyTarget.Project) ||
                                       (typeConstraint == (LibraryDependencyTarget.Project | LibraryDependencyTarget.ExternalProject)));
 
+                    bool isDowngrade = false;
+
 #if verboseLog
                     _logger.LogMinimal($"BSW_DI2, dequed ({currentRef},it={currentRef.IncludeType},sp={currentRef.SuppressParent},vo={currentRef.VersionOverride}, ptr={pathToCurrentRef})");
 #endif
@@ -1646,10 +1649,7 @@ namespace NuGet.Commands
                         (LibraryDependency chosenRef, LibraryRangeIndex chosenRefRangeIndex, LibraryRangeIndex[] pathChosenRef, bool packageReferenceFromRootProject,
                             List<(HashSet<LibraryDependencyIndex> currentSupressions, IReadOnlyDictionary<LibraryDependencyIndex, VersionRange> currentOverrides)> chosenSuppressions) = chosenResolvedItem;
 
-                        if (packageReferenceFromRootProject)
-                        {
-                            continue;
-                        }
+                        
 
 #if verboseLog
                         _logger.LogMinimal($"BSW_DE1, similar currentRef ({currentRef},it={currentRef.IncludeType},sp={currentRef.SuppressParent},vo={currentRef.VersionOverride})");
@@ -1665,6 +1665,12 @@ namespace NuGet.Commands
 
                         if (!RemoteDependencyWalker.IsGreaterThanOrEqualTo(ovr, nvr))
                         {
+                            if (packageReferenceFromRootProject)
+                            {
+                                isDowngrade = true;
+                                goto SkipEviction;
+                            }
+
                             //If we think the newer thing we are looking at is better, remove the old one and let it fall thru.
 #if verboseLog
                             _logger.LogMinimal($"BSW_DG1,{currentRef.LibraryRange} -> {chosenResolvedItems[currentRef.Name]}");
@@ -1840,6 +1846,7 @@ namespace NuGet.Commands
                                 new List<(HashSet<LibraryDependencyIndex>, IReadOnlyDictionary<LibraryDependencyIndex, VersionRange>)> { (currentSupressions, currentOverrides) }));
 
                     }
+                    SkipEviction:
                     FindLibraryCachedAsyncResult refItemResult = null;
                     if (!allResolvedItems.TryGetValue(libraryRangeOfCurrentRef, out refItemResult))
                     {
@@ -1860,6 +1867,9 @@ namespace NuGet.Commands
                             {
                                 allGraphs.Add(RestoreTargetGraph.Create(_request.Project.RuntimeGraph, Enumerable.Empty<GraphNode<RemoteResolveResult>>(), context, _logger, frameworkRuntimePair.Framework, frameworkRuntimePair.RuntimeIdentifier));
                             }
+
+                            _success = false;
+
                             return allGraphs;
                         }
 
@@ -1882,6 +1892,11 @@ namespace NuGet.Commands
                         {
                             newRTG.Unresolved.Add(currentRef.LibraryRange);
 
+                            continue;
+                        }
+
+                        if (isDowngrade)
+                        {
                             continue;
                         }
                     }
@@ -1970,7 +1985,7 @@ namespace NuGet.Commands
 #if verboseLog
                         _logger.LogMinimal($"BSW_PF6, EnQued ({dep},it={dep.IncludeType},sp={dep.SuppressParent})");
 #endif
-                        refImport.Enqueue(new ImportRefItem()
+                        var newImportRefItem = new ImportRefItem()
                         {
                             Ref = dep,
                             DependencyIndex = depIndex,
@@ -1979,7 +1994,11 @@ namespace NuGet.Commands
                             Suppressions = suppressions,
                             CurrentOverrides = finalVersionOverrides,
                             DirectPackageReferenceFromRootProject = (currentRefRangeIndex == rootProjectRefItem.RangeIndex) && (dep.LibraryRange.TypeConstraint == LibraryDependencyTarget.Package),
-                        });
+                        };
+
+                        //HashSet<int> paths = new HashSet<int>(newImportRefItem.PathToRef.Length);
+
+                        refImport.Enqueue(newImportRefItem);
                     }
 
                     // Add runtime dependencies of the current node if a runtime identifier has been specified.
@@ -2057,6 +2076,10 @@ namespace NuGet.Commands
                 rootGraphNode.Item = allResolvedItems[startRefLibraryRangeIndex].Item;
                 nGraph.Add(rootGraphNode);
 
+                var nodesById = new Dictionary<LibraryRangeIndex, GraphNode<RemoteResolveResult>>();
+
+                var downgrades = new Dictionary<LibraryRangeIndex, (LibraryRangeIndex ChosenLibraryRangeIndex, GraphNode<RemoteResolveResult> OuterNode)>();
+
                 itemsToFlatten.Enqueue((initialProjectIndex, rootGraphNode));
                 while (itemsToFlatten.Count > 0)
                 {
@@ -2086,9 +2109,45 @@ namespace NuGet.Commands
                         for(int i=0; i<node.Item.Data.Dependencies.Count; i++)
                         {
                             var dep = node.Item.Data.Dependencies[i];
+                            if (StringComparer.OrdinalIgnoreCase.Equals(dep.Name, node.Item.Key.Name) || StringComparer.OrdinalIgnoreCase.Equals(dep.Name, rootGraphNode.Key.Name))
+                            {
+                                // Cycle
+                                var nodeWithCycle = new GraphNode<RemoteResolveResult>(dep.LibraryRange)
+                                {
+                                    OuterNode = currentGraphNode,
+                                    Disposition = Disposition.Cycle
+                                };
+
+                                newRTG.AnalyzeResult.Cycles.Add(nodeWithCycle);
+
+                                continue;
+                            }
+
                             LibraryDependencyIndex depIndex = node.GetDependencyIndexForDependency(i);
                             if (visitedItems.Contains(depIndex))
+                            {
+                                var rangeIndex = node.GetRangeIndexForDependency(i);
+                                var chosenDep = chosenResolvedItems[depIndex];
+
+                                if (chosenResolvedItems[node.DependencyIndex].pathToRef.Contains(rangeIndex))
+                                {
+                                    // Cycle
+                                    var nodeWithCycle = new GraphNode<RemoteResolveResult>(dep.LibraryRange);
+                                    nodeWithCycle.OuterNode = currentGraphNode;
+                                    nodeWithCycle.Disposition = Disposition.Cycle;
+                                    newRTG.AnalyzeResult.Cycles.Add(nodeWithCycle);
+
+                                    continue;
+                                }
+                                
+                                else if (rangeIndex != chosenDep.rangeIndex && !downgrades.ContainsKey(rangeIndex) && !RemoteDependencyWalker.IsGreaterThanOrEqualTo(chosenDep.libRef.LibraryRange.VersionRange, dep.LibraryRange.VersionRange))
+                                {
+                                    downgrades.Add(rangeIndex, (chosenDep.rangeIndex, currentGraphNode));
+                                }
+
                                 continue;
+                            }
+
                             visitedItems.Add(depIndex);
 
                             if (!chosenResolvedItems.TryGetValue(depIndex, out var chosenItem))
@@ -2099,12 +2158,19 @@ namespace NuGet.Commands
                             var chosenItemRangeIndex = chosenItem.rangeIndex;
                             LibraryDependency actualDep = chosenItem.libRef;
 
-                                var newGraphNode = new GraphNode<RemoteResolveResult>(actualDep.LibraryRange);
-                                newGraphNode.Item = allResolvedItems[chosenItemRangeIndex].Item;
-                                currentGraphNode.InnerNodes.Add(newGraphNode);
+                            var newGraphNode = new GraphNode<RemoteResolveResult>(actualDep.LibraryRange);
+                            newGraphNode.Item = allResolvedItems[chosenItemRangeIndex].Item;
+                            currentGraphNode.InnerNodes.Add(newGraphNode);
+                            newGraphNode.OuterNode = currentGraphNode;
 
-                                itemsToFlatten.Enqueue((depIndex, newGraphNode));
-                            }
+                            nodesById.Add(chosenItemRangeIndex, newGraphNode);
+                            itemsToFlatten.Enqueue((depIndex, newGraphNode));
+
+                            newRTG.ResolvedDependencies.Add(new ResolvedDependencyKey(
+                                parent: newGraphNode.OuterNode.Item.Key,
+                                range: newGraphNode.Key.VersionRange,
+                                child: newGraphNode.Item.Key));
+                        }
                     }
 #if bswlog
                     else
@@ -2112,6 +2178,28 @@ namespace NuGet.Commands
                         _logger.LogMinimal($"BSW_ERR2, {chosenRefRangeIndex}");
                     }
 #endif
+                }
+
+                if (downgrades.Count > 0)
+                {
+                    foreach (var downgrade in downgrades)
+                    {
+                        var resolvedItem = allResolvedItems[downgrade.Key];
+
+                        var downgradedFrom = new GraphNode<RemoteResolveResult>(resolvedItem.Item.Key)
+                        {
+                            Item = resolvedItem.Item,
+                            OuterNode = downgrade.Value.OuterNode
+                        };
+
+                        var downgradedTo = nodesById[downgrade.Value.ChosenLibraryRangeIndex];
+
+                        newRTG.AnalyzeResult.Downgrades.Add(new DowngradeResult<RemoteResolveResult>
+                        {
+                            DowngradedFrom = downgradedFrom,
+                            DowngradedTo = downgradedTo
+                        });
+                    }
                 }
 
                 sw6_flatten.Stop();
