@@ -174,6 +174,11 @@ namespace NuGet.Commands
             ParentId = request.ParentId;
 
             _success = !request.AdditionalMessages?.Any(m => m.Level == LogLevel.Error) ?? true;
+
+            if (request.Project.RestoreMetadata.CentralPackageTransitivePinningEnabled)
+            {
+                _usePrototype = 0;
+            }
         }
 
         public Task<RestoreResult> ExecuteAsync()
@@ -349,6 +354,8 @@ namespace NuGet.Commands
                             telemetry);
                             if (NuGetEventSource.IsEnabled) TraceEvents.BuildRestoreGraphStop(_request.Project.FilePath);
                             prototypeTimeMs = sw.ElapsedMilliseconds;
+
+                            await UnexpectedDependencyMessages.LogAsync(prototypeGraphs, _request.Project, _logger);
                         }
 #if bswlog
                         _logger.LogMinimal($"BSW_Rt: orig={originalTimeMs}, prototype={prototypeTimeMs}, {_request.Project.FilePath}");
@@ -1445,8 +1452,6 @@ namespace NuGet.Commands
             context.ProjectLibraryProviders.Add(
                     new PackageSpecReferenceDependencyProvider(updatedExternalProjects, _logger));
 
-            var remoteWalker = new RemoteDependencyWalker(context);
-
             var projectRange = new LibraryRange()
             {
                 Name = _request.Project.Name,
@@ -1485,7 +1490,7 @@ namespace NuGet.Commands
                 //                if (_request.Project.FilePath.Contains("Microsoft.Exchange.Diagnostics"))
                 //                    _logger.LogMinimal($"BSW_BP");
 
-
+                
                 //Build up our new RestoreTargetGraph.
                 //This is done by making everything on RTG setable.  We should move to using a normal constructor.
                 var newRTG = new RestoreTargetGraph();
@@ -1838,14 +1843,28 @@ namespace NuGet.Commands
                     FindLibraryCachedAsyncResult refItemResult = null;
                     if (!allResolvedItems.TryGetValue(libraryRangeOfCurrentRef, out refItemResult))
                     {
-                        var refItem = ResolverUtility.FindLibraryCachedAsync(
-                        currentRef.LibraryRange,
-                                    newRTG.Framework,
-                                    newRTG.RuntimeIdentifier,
-                                    context,
-                                    CancellationToken.None,
-                                    noLock: true).GetAwaiter().GetResult();
+                        GraphItem<RemoteResolveResult> refItem;
+                        try
+                        {
+                            refItem = ResolverUtility.FindLibraryCachedAsync(
+                                currentRef.LibraryRange,
+                                newRTG.Framework,
+                                newRTG.RuntimeIdentifier,
+                                context,
+                                CancellationToken.None,
+                                noLock: true).GetAwaiter().GetResult();
+                        }
+                        catch (FatalProtocolException)
+                        {
+                            foreach (FrameworkRuntimePair frameworkRuntimePair in CreateFrameworkRuntimePairs(_request.Project, RequestRuntimeUtility.GetRestoreRuntimes(_request)))
+                            {
+                                allGraphs.Add(RestoreTargetGraph.Create(_request.Project.RuntimeGraph, Enumerable.Empty<GraphNode<RemoteResolveResult>>(), context, _logger, frameworkRuntimePair.Framework, frameworkRuntimePair.RuntimeIdentifier));
+                            }
+                            return allGraphs;
+                        }
+
                         totalDeepLookups++;
+
 
                         refItemResult = new FindLibraryCachedAsyncResult(
                             currentRef,
@@ -1858,6 +1877,13 @@ namespace NuGet.Commands
                         _logger.LogMinimal($"BSW_PF1, {libraryRangeOfCurrentRef}");
 #endif
                         allResolvedItems.Add(libraryRangeOfCurrentRef, refItemResult);
+
+                        if (refItem.Key.Type == LibraryType.Unresolved)
+                        {
+                            newRTG.Unresolved.Add(currentRef.LibraryRange);
+
+                            continue;
+                        }
                     }
 #if verboseLog
                     _logger.LogMinimal($"BSW_PF2, {libraryRangeOfCurrentRef}, {allResolvedItems[libraryRangeOfCurrentRef].Key.ToString()}");
@@ -1888,7 +1914,7 @@ namespace NuGet.Commands
                             }
                             newOverrides[depIndex] = dep.VersionOverride;
                         }
-                    }
+                        }
 
                     // If the override set has been mutated, then add the rest of the overrides.
                     // Otherwise, just use the incoming set of overrides.
@@ -2073,12 +2099,12 @@ namespace NuGet.Commands
                             var chosenItemRangeIndex = chosenItem.rangeIndex;
                             LibraryDependency actualDep = chosenItem.libRef;
 
-                            var newGraphNode = new GraphNode<RemoteResolveResult>(actualDep.LibraryRange);
-                            newGraphNode.Item = allResolvedItems[chosenItemRangeIndex].Item;
-                            currentGraphNode.InnerNodes.Add(newGraphNode);
+                                var newGraphNode = new GraphNode<RemoteResolveResult>(actualDep.LibraryRange);
+                                newGraphNode.Item = allResolvedItems[chosenItemRangeIndex].Item;
+                                currentGraphNode.InnerNodes.Add(newGraphNode);
 
-                            itemsToFlatten.Enqueue((depIndex, newGraphNode));
-                        }
+                                itemsToFlatten.Enqueue((depIndex, newGraphNode));
+                            }
                     }
 #if bswlog
                     else
@@ -2091,8 +2117,9 @@ namespace NuGet.Commands
                 sw6_flatten.Stop();
 
                 newRTG.Flattened = newFlattened;
-
+                
                 newRTG.Graphs = nGraph;
+                
                 allGraphs.Add(newRTG);
 
                 if (string.IsNullOrEmpty(pair.RuntimeIdentifier))
@@ -2120,6 +2147,11 @@ namespace NuGet.Commands
                 $"tpr={sw3_preamble.ElapsedMilliseconds},tvo={sw4_voScan.ElapsedMilliseconds}," +
                 $"tfi={sw5_fullImport.ElapsedMilliseconds},tf={sw6_flatten.ElapsedMilliseconds},pa={patience},mor={maxOutstandingRefs},tl={totalLookups},tdl={totalDeepLookups},te={totalEvictions},the={totalHardEvictions}");
 #endif
+            if (allGraphs.Any(i => i.Unresolved.Count > 0))
+            {
+                await UnresolvedMessages.LogAsync(allGraphs, context, token);
+            }
+
             return allGraphs;
 
         }
