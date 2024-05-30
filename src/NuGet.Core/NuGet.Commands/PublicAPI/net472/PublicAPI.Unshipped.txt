@@ -1,2 +1,6 @@
 #nullable enable
 ~static NuGet.Commands.MSBuildRestoreUtility.GetRestoreAuditProperties(NuGet.Commands.IMSBuildItem specItem, System.Collections.Generic.HashSet<string> suppressionItems) -> NuGet.ProjectModel.RestoreAuditProperties
+~NuGet.Commands.RestoreRequest.SDKAnalysisLevel.get -> string
+~NuGet.Commands.RestoreRequest.SDKAnalysisLevel.set -> void
+~NuGet.Commands.RestoreArgs.SDKAnalysisLevel.get -> string
+~NuGet.Commands.RestoreArgs.SDKAnalysisLevel.set -> void
