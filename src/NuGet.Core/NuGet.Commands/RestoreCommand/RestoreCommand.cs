@@ -1892,6 +1892,8 @@ namespace NuGet.Commands
                         {
                             newRTG.Unresolved.Add(currentRef.LibraryRange);
 
+                            _success = false;
+
                             continue;
                         }
 
@@ -2270,15 +2272,10 @@ namespace NuGet.Commands
                 $"tfi={sw5_fullImport.ElapsedMilliseconds},tf={sw6_flatten.ElapsedMilliseconds},pa={patience},mor={maxOutstandingRefs},tl={totalLookups},tdl={totalDeepLookups},te={totalEvictions},the={totalHardEvictions}");
 #endif
 
-            foreach (var graph in allGraphs)
+            if (!_success)
             {
-                if (graph.Unresolved.Count > 0)
-                {
-                    _success = false;
-
-                    // Log message for any unresolved dependencies
-                    await UnresolvedMessages.LogAsync(allGraphs, context, token);
-                }
+                // Log message for any unresolved dependencies
+                await UnresolvedMessages.LogAsync(allGraphs, context, token);
             }
 
             if (downloadDependencyResolutionResults.Any(e => e.Unresolved.Count > 0))
