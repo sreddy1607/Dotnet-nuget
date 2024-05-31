@@ -1996,8 +1996,6 @@ namespace NuGet.Commands
                             DirectPackageReferenceFromRootProject = (currentRefRangeIndex == rootProjectRefItem.RangeIndex) && (dep.LibraryRange.TypeConstraint == LibraryDependencyTarget.Package),
                         };
 
-                        //HashSet<int> paths = new HashSet<int>(newImportRefItem.PathToRef.Length);
-
                         refImport.Enqueue(newImportRefItem);
                     }
 
@@ -2080,6 +2078,8 @@ namespace NuGet.Commands
 
                 var downgrades = new Dictionary<LibraryRangeIndex, (LibraryRangeIndex ChosenLibraryRangeIndex, GraphNode<RemoteResolveResult> OuterNode)>();
 
+                var versionConflicts = new List<(GraphNode<RemoteResolveResult>, LibraryRangeIndex)>();
+
                 itemsToFlatten.Enqueue((initialProjectIndex, rootGraphNode));
                 while (itemsToFlatten.Count > 0)
                 {
@@ -2148,7 +2148,6 @@ namespace NuGet.Commands
                                 continue;
                             }
 
-                            visitedItems.Add(depIndex);
 
                             if (!chosenResolvedItems.TryGetValue(depIndex, out var chosenItem))
                             {
@@ -2163,6 +2162,26 @@ namespace NuGet.Commands
                             currentGraphNode.InnerNodes.Add(newGraphNode);
                             newGraphNode.OuterNode = currentGraphNode;
 
+                            if (!dep.LibraryRange.VersionRange.Satisfies(newGraphNode.Item.Key.Version))
+                            {
+                                currentGraphNode.InnerNodes.Remove(newGraphNode);
+
+                                // Conflict
+                                var conflictingNode = new GraphNode<RemoteResolveResult>(dep.LibraryRange)
+                                {
+                                    Disposition = Disposition.Acceptable
+                                };
+
+                                conflictingNode.Item = allResolvedItems[node.GetRangeIndexForDependency(i)].Item;
+                                currentGraphNode.InnerNodes.Add(conflictingNode);
+                                conflictingNode.OuterNode = currentGraphNode;
+
+                                versionConflicts.Add((conflictingNode, chosenItemRangeIndex));
+
+                                continue;
+                            }
+
+                            visitedItems.Add(depIndex);
                             nodesById.Add(chosenItemRangeIndex, newGraphNode);
                             itemsToFlatten.Enqueue((depIndex, newGraphNode));
 
@@ -2178,6 +2197,18 @@ namespace NuGet.Commands
                         _logger.LogMinimal($"BSW_ERR2, {chosenRefRangeIndex}");
                     }
 #endif
+                }
+
+                if (versionConflicts.Count > 0)
+                {
+                    foreach (var versionConflict in versionConflicts)
+                    {
+                        newRTG.AnalyzeResult.VersionConflicts.Add(new VersionConflictResult<RemoteResolveResult>
+                        {
+                            Conflicting = versionConflict.Item1,
+                            Selected = nodesById[versionConflict.Item2]
+                        });
+                    }
                 }
 
                 if (downgrades.Count > 0)
@@ -2216,13 +2247,16 @@ namespace NuGet.Commands
                 }
             }
 
+            DownloadDependencyResolutionResult[] downloadDependencyResolutionResults = await ProjectRestoreCommand.DownloadDependenciesAsync(_request.Project, context, telemetryActivity, string.Empty, token);
+
             HashSet<LibraryIdentity> uniquePackages = new HashSet<LibraryIdentity>();
-            projectRestoreCommand.InstallPackagesAsync(
+
+            _success &= await projectRestoreCommand.InstallPackagesAsync(
                 uniquePackages,
                 allGraphs,
-                Array.Empty<DownloadDependencyResolutionResult>(),
+                downloadDependencyResolutionResults,
                 userPackageFolder,
-                token).Wait(token);
+                token);
 
             sw2_prototype.Stop();
 
@@ -2235,9 +2269,23 @@ namespace NuGet.Commands
                 $"tpr={sw3_preamble.ElapsedMilliseconds},tvo={sw4_voScan.ElapsedMilliseconds}," +
                 $"tfi={sw5_fullImport.ElapsedMilliseconds},tf={sw6_flatten.ElapsedMilliseconds},pa={patience},mor={maxOutstandingRefs},tl={totalLookups},tdl={totalDeepLookups},te={totalEvictions},the={totalHardEvictions}");
 #endif
-            if (allGraphs.Any(i => i.Unresolved.Count > 0))
+
+            foreach (var graph in allGraphs)
             {
-                await UnresolvedMessages.LogAsync(allGraphs, context, token);
+                if (graph.Unresolved.Count > 0)
+                {
+                    _success = false;
+
+                    // Log message for any unresolved dependencies
+                    await UnresolvedMessages.LogAsync(allGraphs, context, token);
+                }
+            }
+
+            if (downloadDependencyResolutionResults.Any(e => e.Unresolved.Count > 0))
+            {
+                _success = false;
+
+                await UnresolvedMessages.LogAsync(downloadDependencyResolutionResults, context, token);
             }
 
             return allGraphs;
