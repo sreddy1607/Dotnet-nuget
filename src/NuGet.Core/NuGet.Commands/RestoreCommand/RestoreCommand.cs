@@ -1465,6 +1465,7 @@ namespace NuGet.Commands
             var graphByTFM = new Dictionary<NuGetFramework, RestoreTargetGraph>();
             var runtimeIds = RequestRuntimeUtility.GetRestoreRuntimes(_request);
             var projectFrameworkRuntimePairs = CreateFrameworkRuntimePairs(_request.Project, runtimeIds);
+            RuntimeGraph allRuntimes = RuntimeGraph.Empty;
             int patience = 0;
             int maxOutstandingRefs = 0;
             int totalLookups = 0;
@@ -1512,6 +1513,7 @@ namespace NuGet.Commands
 
                 RestoreTargetGraph tfmNonRidGraph = null;
                 RuntimeGraph runtimeGraph = null;
+
                 if (!string.IsNullOrEmpty(pair.RuntimeIdentifier))
                 {
                     // We start with the non-RID TFM graph.
@@ -1530,6 +1532,7 @@ namespace NuGet.Commands
                     }
 
                     runtimeGraph = ProjectRestoreCommand.GetRuntimeGraph(tfmNonRidGraph, localRepositories, projectRuntimeGraph: projectProviderRuntimeGraph, _logger);
+                    allRuntimes = RuntimeGraph.Merge(allRuntimes, runtimeGraph);
                 }
 
                 newRTG.Conventions = new Client.ManagedCodeConventions(runtimeGraph);
@@ -1630,7 +1633,7 @@ namespace NuGet.Commands
                                                     _logger.LogMinimal($"BSW_ERR, Found override of override {currentRef} as it matches the override of {currentOverrides[currentRef.Name]}");
                                                 }
                         */
-                        if (ov != currentRef.LibraryRange.VersionRange)
+                        if (!ov.Equals(currentRef.LibraryRange.VersionRange))
                         {
 #if verboseLog
                             if (currentRef.VersionOverride != null)
@@ -1995,7 +1998,7 @@ namespace NuGet.Commands
                             PathToRef = PathToRef.Create(pathToCurrentRef, libraryRangeOfCurrentRef),
                             Suppressions = suppressions,
                             CurrentOverrides = finalVersionOverrides,
-                            DirectPackageReferenceFromRootProject = (currentRefRangeIndex == rootProjectRefItem.RangeIndex) && (dep.LibraryRange.TypeConstraint == LibraryDependencyTarget.Package),
+                            DirectPackageReferenceFromRootProject = (refItemResult.Item.Key.Type == LibraryType.Project || refItemResult.Item.Key.Type == LibraryType.ExternalProject) && (dep.LibraryRange.TypeConstraint == LibraryDependencyTarget.Package),
                         };
 
                         refImport.Enqueue(newImportRefItem);
@@ -2240,7 +2243,33 @@ namespace NuGet.Commands
                 newRTG.Flattened = newFlattened;
                 
                 newRTG.Graphs = nGraph;
-                
+
+                foreach (var profile in _request.Project.RuntimeGraph.Supports)
+                {
+                    var runtimes = allRuntimes;
+
+                    CompatibilityProfile compatProfile;
+                    if (profile.Value.RestoreContexts.Any())
+                    {
+                        // Just use the contexts from the project definition
+                        compatProfile = profile.Value;
+                    }
+                    else if (!runtimes.Supports.TryGetValue(profile.Value.Name, out compatProfile))
+                    {
+                        // No definition of this profile found, so just continue to the next one
+                        var message = string.Format(CultureInfo.CurrentCulture, Strings.Log_UnknownCompatibilityProfile, profile.Key);
+
+                        await _logger.LogAsync(RestoreLogMessage.CreateWarning(NuGetLogCode.NU1502, message));
+                        continue;
+                    }
+
+                    foreach (var frameworkRuntimePair in compatProfile.RestoreContexts)
+                    {
+                        _logger.LogDebug($" {profile.Value.Name} -> +{frameworkRuntimePair}");
+                        _request.CompatibilityProfiles.Add(frameworkRuntimePair);
+                    }
+                }
+
                 allGraphs.Add(newRTG);
 
                 if (string.IsNullOrEmpty(pair.RuntimeIdentifier))
