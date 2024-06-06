@@ -120,12 +120,6 @@ namespace NuGet.Protocol
                     {
                         var rangeUri = registrationPage.Url;
                         var leafRegistrationPage = await GetRegistratioIndexPageAsync(_client, rangeUri, packageId, lower, upper, httpSourceCacheContext, log, token);
-
-                        if (registrationPage == null)
-                        {
-                            throw new InvalidDataException(registrationUri.AbsoluteUri);
-                        }
-
                         ProcessRegistrationPage(leafRegistrationPage, results, range, includePrerelease, includeUnlisted, metadataCache);
                     }
                     else
@@ -233,7 +227,7 @@ namespace NuGet.Protocol
                                 $"list_{packageIdLowerCase}_range_{lower.ToNormalizedString()}-{upper.ToNormalizedString()}",
                                 httpSourceCacheContext)
                             {
-                                IgnoreNotFounds = true,
+                                IgnoreNotFounds = false,
                             },
                             httpSourceResult => DeserializeStreamDataAsync<RegistrationPage>(httpSourceResult.Stream, token),
                             log,
