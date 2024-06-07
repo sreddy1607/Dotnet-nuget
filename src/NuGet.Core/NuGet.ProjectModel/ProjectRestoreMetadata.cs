@@ -192,10 +192,10 @@ namespace NuGet.ProjectModel
                    osStringComparer.Equals(ProjectUniqueName, other.ProjectUniqueName) &&
                    GetSources(Sources).SetEqualsWithNullCheck(GetSources(other.Sources), StringComparer.OrdinalIgnoreCase) &&
                    osStringComparer.Equals(PackagesPath, other.PackagesPath) &&
-                   ConfigFilePaths.OrderedEquals(other.ConfigFilePaths, filePath => filePath, osStringComparer, osStringComparer) &&
-                   FallbackFolders.OrderedEquals(other.FallbackFolders, fallbackFolder => fallbackFolder, osStringComparer, osStringComparer) &&
-                   EqualityUtility.OrderedEquals(TargetFrameworks, other.TargetFrameworks, dep => dep.TargetAlias, StringComparer.OrdinalIgnoreCase) &&
-                   OriginalTargetFrameworks.OrderedEquals(other.OriginalTargetFrameworks, fw => fw, StringComparer.OrdinalIgnoreCase, StringComparer.OrdinalIgnoreCase) &&
+                   ConfigFilePaths.OrderedEquals(other.ConfigFilePaths, (a, b) => osStringComparer.Compare(a, b), osStringComparer) &&
+                   FallbackFolders.OrderedEquals(other.FallbackFolders, (a, b) => osStringComparer.Compare(a, b), osStringComparer) &&
+                   EqualityUtility.OrderedEquals(TargetFrameworks, other.TargetFrameworks, (a, b) => StringComparer.OrdinalIgnoreCase.Compare(a.TargetAlias, b.TargetAlias)) &&
+                   OriginalTargetFrameworks.OrderedEquals(other.OriginalTargetFrameworks, (a, b) => osStringComparer.Compare(a, b), StringComparer.OrdinalIgnoreCase) &&
                    CrossTargeting == other.CrossTargeting &&
                    LegacyPackagesDirectory == other.LegacyPackagesDirectory &&
                    ValidateRuntimeAssets == other.ValidateRuntimeAssets &&
