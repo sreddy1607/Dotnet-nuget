@@ -4,3 +4,5 @@
 ~NuGet.Commands.RestoreRequest.SDKAnalysisLevel.set -> void
 ~NuGet.Commands.RestoreArgs.SDKAnalysisLevel.get -> string
 ~NuGet.Commands.RestoreArgs.SDKAnalysisLevel.set -> void
+~static NuGet.Commands.MSBuildRestoreUtility.GetDependencySpec(System.Collections.Generic.IEnumerable<NuGet.Commands.IMSBuildItem> items, string SDKAnalysisLevel) -> NuGet.ProjectModel.DependencyGraphSpec
+~static NuGet.Commands.MSBuildRestoreUtility.GetDependencySpec(System.Collections.Generic.IEnumerable<NuGet.Commands.IMSBuildItem> items, bool readOnly, string SDKAnalysisLevel) -> NuGet.ProjectModel.DependencyGraphSpec
